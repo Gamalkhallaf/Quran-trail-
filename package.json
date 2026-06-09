@@ -1,0 +1,9 @@
+{
+  "name": "quran-tajweed",
+  "version": "1.0.0",
+  "description": "تعلم التجويد بالذكاء الاصطناعي",
+  "dependencies": {
+    "form-data": "^4.0.0",
+    "node-fetch": "^2.7.0"
+  }
+}
