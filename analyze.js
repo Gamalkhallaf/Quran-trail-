@@ -449,7 +449,8 @@ async function toggleRec(){
   try {
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
     audioChunks = [];
-    mediaRec = new MediaRecorder(stream, {mimeType: getSupportedMime()});
+    const mime = getSupportedMime();
+    mediaRec = mime ? new MediaRecorder(stream, {mimeType: mime}) : new MediaRecorder(stream);
     mediaRec.ondataavailable = e => { if(e.data.size>0) audioChunks.push(e.data); };
     mediaRec.onstop = processAudio;
     mediaRec.start(250);
@@ -475,8 +476,10 @@ function stopRec(){
 }
 
 function getSupportedMime(){
-  const types = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
-  return types.find(t => MediaRecorder.isTypeSupported(t)) || '';
+  // iOS Safari only supports audio/mp4
+  const types = ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'];
+  const supported = types.find(t => MediaRecorder.isTypeSupported(t));
+  return supported || '';
 }
 
 async function processAudio(){
