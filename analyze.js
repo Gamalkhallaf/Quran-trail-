@@ -25,18 +25,24 @@ exports.handler = async function (event) {
       return { statusCode: 500, headers, body: JSON.stringify({ error: "API keys not configured on server" }) };
     }
 
-    // ── Step 1: Whisper transcription ────────────────────────────────────────
+    // ── Step 1: Whisper via multipart/form-data ──────────────────────────────
     const audioBuffer = Buffer.from(audioBase64, "base64");
+    const mime = mimeType || "audio/webm";
+    const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+
     const form = new FormData();
-    form.append("file", audioBuffer, { filename: "recitation.webm", contentType: mimeType || "audio/webm" });
+    form.append("file", audioBuffer, { filename: `rec.${ext}`, contentType: mime });
     form.append("model", "whisper-1");
     form.append("language", "ar");
-    form.append("prompt", `تلاوة قرآنية من سورة ${surahName}، الآية: ${ayahText}`);
+    form.append("prompt", `قرآن كريم سورة ${surahName}`);
 
     const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${OPENAI_KEY}`, ...form.getHeaders() },
-      body: form,
+      headers: {
+        Authorization: `Bearer ${OPENAI_KEY}`,
+        ...form.getHeaders(),
+      },
+      body: form.getBuffer(),
     });
 
     if (!whisperRes.ok) {
@@ -53,33 +59,19 @@ exports.handler = async function (event) {
 الآية الكريمة: "${ayahText}"
 من سورة: ${surahName} — الآية رقم: ${ayahNum}
 
-ما سجّله الميكروفون من تلاوة المتعلم (عبر Whisper): "${transcript}"
+ما سجّله الميكروفون من تلاوة المتعلم: "${transcript}"
 
 قارن بدقة بين الآية الصحيحة وما قرأه المتعلم، وحلّل أحكام التجويد.
 
-أجب بـ JSON فقط بدون أي نص خارجه، بالهيكل الآتي:
+أجب بـ JSON فقط بدون أي نص خارجه:
 {
-  "transcript": "النص المسموع كما هو",
-  "score": رقم من 0 إلى 100,
-  "summary": "جملة واحدة تلخّص مستوى التلاوة",
-  "word_errors": [
-    {
-      "wrong": "الكلمة كما نُطقت",
-      "correct": "الكلمة الصحيحة",
-      "reason": "سبب الخطأ بالتفصيل"
-    }
-  ],
-  "tajweed_rules": [
-    {
-      "rule": "اسم الحكم (إدغام / إخفاء / إظهار / قلقلة / مدّ / غنّة / تفخيم / ترقيق...)",
-      "location": "الكلمة أو الموضع في الآية",
-      "status": "correct أو error أو missed",
-      "explanation": "شرح الحكم وكيفية أدائه الصحيح"
-    }
-  ],
-  "makharij_notes": "ملاحظات على مخارج الحروف إن وُجدت أخطاء",
-  "praise": "كلمة تشجيع مناسبة للمتعلم",
-  "next_focus": "أهم حكم أو نقطة يركز عليها في التدريب القادم"
+  "score": 0-100,
+  "summary": "جملة واحدة",
+  "word_errors": [{"wrong": "...", "correct": "...", "reason": "..."}],
+  "tajweed_rules": [{"rule": "...", "location": "...", "status": "correct|error|missed", "explanation": "..."}],
+  "makharij_notes": "...",
+  "praise": "...",
+  "next_focus": "..."
 }`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -111,6 +103,7 @@ exports.handler = async function (event) {
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({ success: true, transcript, analysis }),
     };
+
   } catch (err) {
     console.error("analyze error:", err);
     return {
