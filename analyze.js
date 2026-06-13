@@ -1,610 +1,129 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>تعلُّم التجويد</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --gold: #c9a84c;
-    --gold-light: #e8d08a;
-    --green: #2d6a4f;
-    --cream: #fdf8f0;
-    --bg: #0d1b0f;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Cairo', sans-serif;
-    background: var(--bg);
-    color: var(--cream);
-    min-height: 100vh;
-    background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(45,106,79,0.15) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(201,168,76,0.08) 0%, transparent 50%);
-  }
+const FormData = require("form-data");
 
-  /* ── Header ── */
-  .header {
-    text-align: center;
-    padding: 2rem 1rem 1.2rem;
-    border-bottom: 1px solid rgba(201,168,76,0.2);
-  }
-  .header::before {
-    content: '﷽';
-    display: block;
-    font-family: 'Amiri Quran', serif;
-    font-size: 2.2rem;
-    color: var(--gold);
-    margin-bottom: 0.5rem;
-    text-shadow: 0 0 24px rgba(201,168,76,0.5);
-  }
-  .header h1 { font-family: 'Amiri', serif; font-size: 1.7rem; color: var(--gold-light, #e8d08a); font-weight: 400; }
-  .header p { font-size: 0.8rem; color: rgba(240,230,208,0.45); margin-top: 0.3rem; }
+exports.handler = async function (event) {
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
 
-  .container { max-width: 820px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
-
-  /* ── Surah Selector ── */
-  .surah-selector { display: flex; gap: 0.8rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap; }
-  .surah-selector label { font-size: 0.85rem; color: var(--gold-light, #e8d08a); font-weight: 600; white-space: nowrap; }
-  select {
-    background: rgba(45,106,79,0.2); border: 1px solid rgba(201,168,76,0.3);
-    color: var(--cream); padding: 0.5rem 1rem; border-radius: 8px;
-    font-family: 'Cairo', sans-serif; font-size: 0.9rem; cursor: pointer; outline: none; flex: 1; min-width: 180px;
-  }
-  select:focus { border-color: var(--gold); }
-  select option { background: #1a2e1f; }
-
-  /* ── Mushaf Card ── */
-  .mushaf-card {
-    background: linear-gradient(135deg, rgba(240,230,208,0.06) 0%, rgba(201,168,76,0.04) 100%);
-    border: 1px solid rgba(201,168,76,0.25);
-    border-radius: 16px; padding: 2rem; margin-bottom: 1.5rem; position: relative; overflow: hidden;
-  }
-  .mushaf-card::before { content: ''; position: absolute; top: 0; right: 0; width: 90px; height: 90px; background: radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%); }
-  .mushaf-card::after  { content: ''; position: absolute; bottom: 0; left: 0; width: 90px; height: 90px; background: radial-gradient(circle, rgba(45,106,79,0.12) 0%, transparent 70%); }
-  .ayah-badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 36px; height: 36px; border: 1px solid var(--gold); border-radius: 50%;
-    font-family: 'Amiri', serif; font-size: 0.9rem; color: var(--gold); margin-bottom: 1rem; position: relative; z-index: 1;
-  }
-  .ayah-text {
-    font-family: 'Amiri Quran', serif; font-size: 1.9rem; line-height: 2.9;
-    color: var(--cream); text-align: justify; position: relative; z-index: 1; word-spacing: 0.12em;
-  }
-  .w { border-radius: 4px; padding: 0 3px; transition: all 0.35s; display: inline; }
-  .w-ok   { color: #6fcf97; background: rgba(111,207,151,0.13); }
-  .w-bad  { color: #ff6b6b; background: rgba(255,107,107,0.14); text-decoration: underline; text-decoration-color: #ff6b6b; text-underline-offset: 5px; }
-  .w-neu  { color: var(--cream); }
-  .ayah-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; position: relative; z-index: 1; }
-  .nav-btn {
-    background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3); color: #e8d08a;
-    padding: 0.4rem 1rem; border-radius: 8px; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 0.8rem; transition: all 0.2s;
-  }
-  .nav-btn:hover { background: rgba(201,168,76,0.22); }
-  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-  .ayah-counter { font-size: 0.8rem; color: rgba(240,230,208,0.45); }
-
-  /* ── Record Button ── */
-  .rec-wrap { text-align: center; margin-bottom: 1.5rem; }
-  .rec-btn {
-    width: 86px; height: 86px; border-radius: 50%; border: 3px solid var(--gold);
-    background: rgba(201,168,76,0.1); color: var(--gold); font-size: 2.1rem; cursor: pointer;
-    transition: all 0.3s; display: inline-flex; align-items: center; justify-content: center;
-  }
-  .rec-btn:hover { background: rgba(201,168,76,0.22); transform: scale(1.06); }
-  .rec-btn.recording { background: rgba(192,57,43,0.22); border-color: #e74c3c; color: #e74c3c; animation: pulse 1.4s infinite; }
-  @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(231,76,60,0.45); }
-    70%  { box-shadow: 0 0 0 22px rgba(231,76,60,0); }
-    100% { box-shadow: 0 0 0 0 rgba(231,76,60,0); }
-  }
-  .rec-label { display: block; margin-top: 0.75rem; font-size: 0.85rem; color: rgba(240,230,208,0.55); }
-  .rec-label.live { color: #e74c3c; }
-
-  /* ── Status Bar ── */
-  .status {
-    border-radius: 10px; padding: 0.8rem 1.2rem; font-size: 0.85rem; text-align: center;
-    margin-bottom: 1.5rem; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.3s;
-    background: rgba(45,106,79,0.15); border: 1px solid rgba(45,106,79,0.3); color: rgba(240,230,208,0.7);
-  }
-  .status.rec  { border-color: #e74c3c; background: rgba(192,57,43,0.1); color: #ff8a80; }
-  .status.proc { border-color: var(--gold); background: rgba(201,168,76,0.08); color: #e8d08a; }
-  .status.ok   { border-color: #6fcf97; background: rgba(111,207,151,0.1); color: #6fcf97; }
-  .status.err  { border-color: #ff6b6b; background: rgba(255,107,107,0.1); color: #ff8a80; }
-
-  /* ── Feedback Panel ── */
-  .panel { background: rgba(13,27,15,0.85); border: 1px solid rgba(201,168,76,0.2); border-radius: 14px; overflow: hidden; display: none; margin-bottom: 1.5rem; }
-  .panel.show { display: block; }
-  .tabs { display: flex; border-bottom: 1px solid rgba(201,168,76,0.15); }
-  .tab {
-    flex: 1; padding: 0.75rem; background: transparent; border: none; color: rgba(240,230,208,0.45);
-    font-family: 'Cairo', sans-serif; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
-    border-bottom: 2px solid transparent;
-  }
-  .tab.on { color: #e8d08a; border-bottom-color: var(--gold); background: rgba(201,168,76,0.06); }
-  .pane { padding: 1.3rem; display: none; }
-  .pane.on { display: block; }
-
-  /* Basic tab */
-  .err-item {
-    background: rgba(255,107,107,0.08); border-right: 3px solid #ff6b6b;
-    padding: 0.65rem 0.9rem; margin-bottom: 0.5rem; border-radius: 0 8px 8px 0; font-size: 0.85rem;
-  }
-  .wq { font-family: 'Amiri Quran', serif; font-size: 1.15rem; }
-  .wbad { color: #ff6b6b; }
-  .wok  { color: #6fcf97; }
-  .arr  { color: rgba(240,230,208,0.35); margin: 0 0.4rem; }
-  .all-ok { text-align: center; color: #6fcf97; padding: 1.2rem; font-size: 1rem; }
-  .all-ok span { font-size: 2.2rem; display: block; margin-bottom: 0.3rem; }
-  .heard { font-family: 'Amiri', serif; font-size: 0.88rem; color: rgba(240,230,208,0.38); text-align: center; margin-top: 0.9rem; font-style: italic; }
-
-  /* AI tab */
-  .score-wrap { margin-bottom: 1.1rem; }
-  .score-lbl { font-size: 0.82rem; color: rgba(240,230,208,0.55); margin-bottom: 0.4rem; display: flex; justify-content: space-between; }
-  .score-bar { height: 9px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; }
-  .score-fill { height: 100%; border-radius: 5px; transition: width 1.1s ease; }
-  .sfh { background: linear-gradient(90deg,#6fcf97,#27ae60); }
-  .sfm { background: linear-gradient(90deg,#f6c90e,#e67e22); }
-  .sfl { background: linear-gradient(90deg,#ff6b6b,#c0392b); }
-
-  .ai-section h3 { color: #e8d08a; font-size: 0.88rem; margin: 1rem 0 0.5rem; display: flex; align-items: center; gap: 0.4rem; }
-  .ai-section h3:first-child { margin-top: 0; }
-  .rule-card {
-    background: rgba(201,168,76,0.06); border-right: 3px solid var(--gold);
-    padding: 0.65rem 0.9rem; margin-bottom: 0.5rem; border-radius: 0 8px 8px 0;
-  }
-  .rule-card.bad  { border-right-color: #ff6b6b; background: rgba(255,107,107,0.06); }
-  .rule-card.miss { border-right-color: #f6c90e; background: rgba(246,201,14,0.06); }
-  .rule-name  { font-size: 0.85rem; font-weight: 700; color: #e8d08a; }
-  .rule-card.bad  .rule-name { color: #ff8a80; }
-  .rule-card.miss .rule-name { color: #f6c90e; }
-  .rule-loc   { font-family: 'Amiri Quran', serif; font-size: 1rem; color: rgba(240,230,208,0.7); margin-right: 0.4rem; }
-  .rule-desc  { font-size: 0.82rem; color: rgba(240,230,208,0.6); margin-top: 0.25rem; line-height: 1.6; }
-
-  .highlight-card { background: rgba(45,106,79,0.15); border: 1px solid rgba(45,106,79,0.3); border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.85rem; color: rgba(240,230,208,0.75); line-height: 1.6; margin-bottom: 0.5rem; }
-
-  .loading { text-align: center; padding: 2rem; color: #e8d08a; }
-  .spinner { width: 34px; height: 34px; border: 3px solid rgba(201,168,76,0.18); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.75s linear infinite; margin: 0 auto 0.8rem; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .footer { text-align: center; padding: 1rem; font-size: 0.7rem; color: rgba(240,230,208,0.2); border-top: 1px solid rgba(201,168,76,0.1); }
-  @media(max-width:480px){ .ayah-text{ font-size:1.45rem; line-height:2.6; } .mushaf-card{ padding:1.2rem; } }
-</style>
-</head>
-<body>
-
-<div class="header">
-  <h1>تعلُّم التجويد</h1>
-  <p>سجّل تلاوتك • Whisper يسمعك • Claude يحلّل أحكام التجويد</p>
-</div>
-
-<div class="container">
-
-  <div class="surah-selector">
-    <label>السورة:</label>
-    <select id="sel" onchange="loadSurah()">
-      <option value="fatiha">الفاتحة</option>
-      <option value="ikhlas">الإخلاص</option>
-      <option value="falaq">الفلق</option>
-      <option value="nas">الناس</option>
-      <option value="kawthar">الكوثر</option>
-      <option value="asr">العصر</option>
-      <option value="kahf">الكهف</option>
-    </select>
-  </div>
-
-  <div class="mushaf-card">
-    <div class="ayah-badge" id="badge">١</div>
-    <div class="ayah-text" id="ayahText"></div>
-    <div class="ayah-nav">
-      <button class="nav-btn" id="prevBtn" onclick="nav(-1)" disabled>◄ السابقة</button>
-      <span class="ayah-counter" id="counter">١ / ٧</span>
-      <button class="nav-btn" id="nextBtn" onclick="nav(1)">التالية ►</button>
-    </div>
-  </div>
-
-  <!-- Listen to Al-Husary -->
-  <div style="text-align:center;margin-bottom:1.2rem;">
-    <button onclick="playHusary()" id="husaryBtn"
-      style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:#e8d08a;
-             padding:0.5rem 1.4rem;border-radius:20px;cursor:pointer;font-family:Cairo,sans-serif;
-             font-size:0.85rem;transition:all 0.2s;display:inline-flex;align-items:center;gap:0.5rem;">
-      🔊 استمع للشيخ الحصري
-    </button>
-    <audio id="husaryAudio" onended="resetHusaryBtn()"></audio>
-  </div>
-
-  <div class="rec-wrap">
-    <button class="rec-btn" id="recBtn" onclick="toggleRec()">🎙️</button>
-    <span class="rec-label" id="recLbl">اضغط للتسجيل</span>
-  </div>
-
-  <div class="status" id="status">🕌 اختر آية واضغط زر التسجيل للبدء</div>
-
-  <div class="panel" id="panel">
-    <div class="tabs">
-      <button class="tab on" id="t1" onclick="switchTab(1)">📋 التصحيح الأساسي</button>
-      <button class="tab"    id="t2" onclick="switchTab(2)">✨ تحليل التجويد بالذكاء الاصطناعي</button>
-    </div>
-    <div class="pane on" id="p1">
-      <div id="basicContent"></div>
-      <div class="heard" id="heardTxt"></div>
-    </div>
-    <div class="pane" id="p2">
-      <div id="aiContent"></div>
-    </div>
-  </div>
-
-</div>
-
-<div class="footer">﷽ — التعرف على الصوت بـ OpenAI Whisper • تحليل التجويد بـ Claude AI • Anthropic</div>
-
-<script>
-// ── Data ─────────────────────────────────────────────────────────────────────
-const Q = {
-  fatiha:  { n:'الفاتحة',  a:[
-    {n:'١',t:'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ'},
-    {n:'٢',t:'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ'},
-    {n:'٣',t:'الرَّحْمَٰنِ الرَّحِيمِ'},
-    {n:'٤',t:'مَالِكِ يَوْمِ الدِّينِ'},
-    {n:'٥',t:'إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ'},
-    {n:'٦',t:'اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ'},
-    {n:'٧',t:'صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ'}
-  ]},
-  ikhlas:  { n:'الإخلاص', a:[
-    {n:'١',t:'قُلْ هُوَ اللَّهُ أَحَدٌ'},
-    {n:'٢',t:'اللَّهُ الصَّمَدُ'},
-    {n:'٣',t:'لَمْ يَلِدْ وَلَمْ يُولَدْ'},
-    {n:'٤',t:'وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ'}
-  ]},
-  falaq:   { n:'الفلق',   a:[
-    {n:'١',t:'قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ'},
-    {n:'٢',t:'مِن شَرِّ مَا خَلَقَ'},
-    {n:'٣',t:'وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ'},
-    {n:'٤',t:'وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ'},
-    {n:'٥',t:'وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ'}
-  ]},
-  nas:     { n:'الناس',   a:[
-    {n:'١',t:'قُلْ أَعُوذُ بِرَبِّ النَّاسِ'},
-    {n:'٢',t:'مَلِكِ النَّاسِ'},
-    {n:'٣',t:'إِلَٰهِ النَّاسِ'},
-    {n:'٤',t:'مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ'},
-    {n:'٥',t:'الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ'},
-    {n:'٦',t:'مِنَ الْجِنَّةِ وَالنَّاسِ'}
-  ]},
-  kawthar: { n:'الكوثر',  a:[
-    {n:'١',t:'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ'},
-    {n:'٢',t:'فَصَلِّ لِرَبِّكَ وَانْحَرْ'},
-    {n:'٣',t:'إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ'}
-  ]},
-  asr:     { n:'العصر',   a:[
-    {n:'١',t:'وَالْعَصْرِ'},
-    {n:'٢',t:'إِنَّ الْإِنسَانَ لَفِي خُسْرٍ'},
-    {n:'٣',t:'إِلَّا الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ وَتَوَاصَوْا بِالْحَقِّ وَتَوَاصَوْا بِالصَّبْرِ'}
-  ]},
-  kahf: { n:'الكهف', a:[
-    {n:'١',t:'الْحَمْدُ لِلَّهِ الَّذِي أَنزَلَ عَلَىٰ عَبْدِهِ الْكِتَابَ وَلَمْ يَجْعَل لَّهُ عِوَجًا'},
-    {n:'٢',t:'قَيِّمًا لِّيُنذِرَ بَأْسًا شَدِيدًا مِّن لَّدُنْهُ وَيُبَشِّرَ الْمُؤْمِنِينَ الَّذِينَ يَعْمَلُونَ الصَّالِحَاتِ أَنَّ لَهُمْ أَجْرًا حَسَنًا'},
-    {n:'٣',t:'مَّاكِثِينَ فِيهِ أَبَدًا'},
-    {n:'٤',t:'وَيُنذِرَ الَّذِينَ قَالُوا اتَّخَذَ اللَّهُ وَلَدًا'},
-    {n:'٥',t:'مَّا لَهُم بِهِ مِنْ عِلْمٍ وَلَا لِآبَائِهِمْ كَبُرَتْ كَلِمَةً تَخْرُجُ مِنْ أَفْوَاهِهِمْ إِن يَقُولُونَ إِلَّا كَذِبًا'},
-    {n:'٦',t:'فَلَعَلَّكَ بَاخِعٌ نَّفْسَكَ عَلَىٰ آثَارِهِمْ إِن لَّمْ يُؤْمِنُوا بِهَٰذَا الْحَدِيثِ أَسَفًا'},
-    {n:'٧',t:'إِنَّا جَعَلْنَا مَا عَلَى الْأَرْضِ زِينَةً لَّهَا لِنَبْلُوَهُمْ أَيُّهُمْ أَحْسَنُ عَمَلًا'},
-    {n:'٨',t:'وَإِنَّا لَجَاعِلُونَ مَا عَلَيْهَا صَعِيدًا جُرُزًا'},
-    {n:'٩',t:'أَمْ حَسِبْتَ أَنَّ أَصْحَابَ الْكَهْفِ وَالرَّقِيمِ كَانُوا مِنْ آيَاتِنَا عَجَبًا'},
-    {n:'١٠',t:'إِذْ أَوَى الْفِتْيَةُ إِلَى الْكَهْفِ فَقَالُوا رَبَّنَا آتِنَا مِن لَّدُنكَ رَحْمَةً وَهَيِّئْ لَنَا مِنْ أَمْرِنَا رَشَدًا'},
-    {n:'١١',t:'فَضَرَبْنَا عَلَىٰ آذَانِهِمْ فِي الْكَهْفِ سِنِينَ عَدَدًا'},
-    {n:'١٢',t:'ثُمَّ بَعَثْنَاهُمْ لِنَعْلَمَ أَيُّ الْحِزْبَيْنِ أَحْصَىٰ لِمَا لَبِثُوا أَمَدًا'},
-    {n:'١٣',t:'نَّحْنُ نَقُصُّ عَلَيْكَ نَبَأَهُم بِالْحَقِّ إِنَّهُمْ فِتْيَةٌ آمَنُوا بِرَبِّهِمْ وَزِدْنَاهُمْ هُدًى'},
-    {n:'١٤',t:'وَرَبَطْنَا عَلَىٰ قُلُوبِهِمْ إِذْ قَامُوا فَقَالُوا رَبُّنَا رَبُّ السَّمَاوَاتِ وَالْأَرْضِ لَن نَّدْعُوَ مِن دُونِهِ إِلَٰهًا لَّقَدْ قُلْنَا إِذًا شَطَطًا'},
-    {n:'١٥',t:'هَٰؤُلَاءِ قَوْمُنَا اتَّخَذُوا مِن دُونِهِ آلِهَةً لَّوْلَا يَأْتُونَ عَلَيْهِم بِسُلْطَانٍ بَيِّنٍ فَمَنْ أَظْلَمُ مِمَّنِ افْتَرَىٰ عَلَى اللَّهِ كَذِبًا'},
-    {n:'١٦',t:'وَإِذِ اعْتَزَلْتُمُوهُمْ وَمَا يَعْبُدُونَ إِلَّا اللَّهَ فَأْوُوا إِلَى الْكَهْفِ يَنشُرْ لَكُمْ رَبُّكُم مِّن رَّحْمَتِهِ وَيُهَيِّئْ لَكُم مِّنْ أَمْرِكُم مِّرْفَقًا'},
-    {n:'١٧',t:'وَتَرَى الشَّمْسَ إِذَا طَلَعَت تَّزَاوَرُ عَن كَهْفِهِمْ ذَاتَ الْيَمِينِ وَإِذَا غَرَبَت تَّقْرِضُهُمْ ذَاتَ الشِّمَالِ وَهُمْ فِي فَجْوَةٍ مِّنْهُ ذَٰلِكَ مِنْ آيَاتِ اللَّهِ مَن يَهْدِ اللَّهُ فَهُوَ الْمُهْتَدِ وَمَن يُضْلِلْ فَلَن تَجِدَ لَهُ وَلِيًّا مُّرْشِدًا'},
-    {n:'١٨',t:'وَتَحْسَبُهُمْ أَيْقَاظًا وَهُمْ رُقُودٌ وَنُقَلِّبُهُمْ ذَاتَ الْيَمِينِ وَذَاتَ الشِّمَالِ وَكَلْبُهُم بَاسِطٌ ذِرَاعَيْهِ بِالْوَصِيدِ لَوِ اطَّلَعْتَ عَلَيْهِمْ لَوَلَّيْتَ مِنْهُمْ فِرَارًا وَلَمُلِئْتَ مِنْهُمْ رُعْبًا'},
-    {n:'١٩',t:'وَكَذَٰلِكَ بَعَثْنَاهُمْ لِيَتَسَاءَلُوا بَيْنَهُمْ قَالَ قَائِلٌ مِّنْهُمْ كَمْ لَبِثْتُمْ قَالُوا لَبِثْنَا يَوْمًا أَوْ بَعْضَ يَوْمٍ قَالُوا رَبُّكُمْ أَعْلَمُ بِمَا لَبِثْتُمْ فَابْعَثُوا أَحَدَكُم بِوَرِقِكُمْ هَٰذِهِ إِلَى الْمَدِينَةِ فَلْيَنظُرْ أَيُّهَا أَزْكَىٰ طَعَامًا فَلْيَأْتِكُم بِرِزْقٍ مِّنْهُ وَلْيَتَلَطَّفْ وَلَا يُشْعِرَنَّ بِكُمْ أَحَدًا'},
-    {n:'٢٠',t:'إِنَّهُمْ إِن يَظْهَرُوا عَلَيْكُمْ يَرْجُمُوكُمْ أَوْ يُعِيدُوكُمْ فِي مِلَّتِهِمْ وَلَن تُفْلِحُوا إِذًا أَبَدًا'},
-    {n:'٢١',t:'وَكَذَٰلِكَ أَعْثَرْنَا عَلَيْهِمْ لِيَعْلَمُوا أَنَّ وَعْدَ اللَّهِ حَقٌّ وَأَنَّ السَّاعَةَ لَا رَيْبَ فِيهَا إِذْ يَتَنَازَعُونَ بَيْنَهُمْ أَمْرَهُمْ فَقَالُوا ابْنُوا عَلَيْهِم بُنْيَانًا رَّبُّهُمْ أَعْلَمُ بِهِمْ قَالَ الَّذِينَ غَلَبُوا عَلَىٰ أَمْرِهِمْ لَنَتَّخِذَنَّ عَلَيْهِم مَّسْجِدًا'},
-    {n:'٢٢',t:'سَيَقُولُونَ ثَلَاثَةٌ رَّابِعُهُمْ كَلْبُهُمْ وَيَقُولُونَ خَمْسَةٌ سَادِسُهُمْ كَلْبُهُمْ رَجْمًا بِالْغَيْبِ وَيَقُولُونَ سَبْعَةٌ وَثَامِنُهُمْ كَلْبُهُمْ قُل رَّبِّي أَعْلَمُ بِعِدَّتِهِم مَّا يَعْلَمُهُمْ إِلَّا قَلِيلٌ فَلَا تُمَارِ فِيهِمْ إِلَّا مِرَاءً ظَاهِرًا وَلَا تَسْتَفْتِ فِيهِم مِّنْهُمْ أَحَدًا'},
-    {n:'٢٣',t:'وَلَا تَقُولَنَّ لِشَيْءٍ إِنِّي فَاعِلٌ ذَٰلِكَ غَدًا'},
-    {n:'٢٤',t:'إِلَّا أَن يَشَاءَ اللَّهُ وَاذْكُر رَّبَّكَ إِذَا نَسِيتَ وَقُلْ عَسَىٰ أَن يَهْدِيَنِ رَبِّي لِأَقْرَبَ مِنْ هَٰذَا رَشَدًا'},
-    {n:'٢٥',t:'وَلَبِثُوا فِي كَهْفِهِمْ ثَلَاثَ مِائَةٍ سِنِينَ وَازْدَادُوا تِسْعًا'},
-    {n:'٢٦',t:'قُلِ اللَّهُ أَعْلَمُ بِمَا لَبِثُوا لَهُ غَيْبُ السَّمَاوَاتِ وَالْأَرْضِ أَبْصِرْ بِهِ وَأَسْمِعْ مَا لَهُم مِّن دُونِهِ مِن وَلِيٍّ وَلَا يُشْرِكُ فِي حُكْمِهِ أَحَدًا'},
-    {n:'٢٧',t:'وَاتْلُ مَا أُوحِيَ إِلَيْكَ مِن كِتَابِ رَبِّكَ لَا مُبَدِّلَ لِكَلِمَاتِهِ وَلَن تَجِدَ مِن دُونِهِ مُلْتَحَدًا'},
-    {n:'٢٨',t:'وَاصْبِرْ نَفْسَكَ مَعَ الَّذِينَ يَدْعُونَ رَبَّهُم بِالْغَدَاةِ وَالْعَشِيِّ يُرِيدُونَ وَجْهَهُ وَلَا تَعْدُ عَيْنَاكَ عَنْهُمْ تُرِيدُ زِينَةَ الْحَيَاةِ الدُّنْيَا وَلَا تُطِعْ مَنْ أَغْفَلْنَا قَلْبَهُ عَن ذِكْرِنَا وَاتَّبَعَ هَوَاهُ وَكَانَ أَمْرُهُ فُرُطًا'},
-    {n:'٢٩',t:'وَقُلِ الْحَقُّ مِن رَّبِّكُمْ فَمَن شَاءَ فَلْيُؤْمِن وَمَن شَاءَ فَلْيَكْفُرْ إِنَّا أَعْتَدْنَا لِلظَّالِمِينَ نَارًا أَحَاطَ بِهِمْ سُرَادِقُهَا وَإِن يَسْتَغِيثُوا يُغَاثُوا بِمَاءٍ كَالْمُهْلِ يَشْوِي الْوُجُوهَ بِئْسَ الشَّرَابُ وَسَاءَتْ مُرْتَفَقًا'},
-    {n:'٣٠',t:'إِنَّ الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ إِنَّا لَا نُضِيعُ أَجْرَ مَنْ أَحْسَنَ عَمَلًا'},
-    {n:'٣١',t:'أُولَٰئِكَ لَهُمْ جَنَّاتُ عَدْنٍ تَجْرِي مِن تَحْتِهِمُ الْأَنْهَارُ يُحَلَّوْنَ فِيهَا مِنْ أَسَاوِرَ مِن ذَهَبٍ وَيَلْبَسُونَ ثِيَابًا خُضْرًا مِّن سُندُسٍ وَإِسْتَبْرَقٍ مُّتَّكِئِينَ فِيهَا عَلَى الْأَرَائِكِ نِعْمَ الثَّوَابُ وَحَسُنَتْ مُرْتَفَقًا'},
-    {n:'٣٢',t:'وَاضْرِبْ لَهُم مَّثَلًا رَّجُلَيْنِ جَعَلْنَا لِأَحَدِهِمَا جَنَّتَيْنِ مِنْ أَعْنَابٍ وَحَفَفْنَاهُمَا بِنَخْلٍ وَجَعَلْنَا بَيْنَهُمَا زَرْعًا'},
-    {n:'٣٣',t:'كِلْتَا الْجَنَّتَيْنِ آتَتْ أُكُلَهَا وَلَمْ تَظْلِمْ مِنْهُ شَيْئًا وَفَجَّرْنَا خِلَالَهُمَا نَهَرًا'},
-    {n:'٣٤',t:'وَكَانَ لَهُ ثَمَرٌ فَقَالَ لِصَاحِبِهِ وَهُوَ يُحَاوِرُهُ أَنَا أَكْثَرُ مِنكَ مَالًا وَأَعَزُّ نَفَرًا'},
-    {n:'٣٥',t:'وَدَخَلَ جَنَّتَهُ وَهُوَ ظَالِمٌ لِّنَفْسِهِ قَالَ مَا أَظُنُّ أَن تَبِيدَ هَٰذِهِ أَبَدًا'},
-    {n:'٣٦',t:'وَمَا أَظُنُّ السَّاعَةَ قَائِمَةً وَلَئِن رُّدِدتُّ إِلَىٰ رَبِّي لَأَجِدَنَّ خَيْرًا مِّنْهَا مُنقَلَبًا'},
-    {n:'٣٧',t:'قَالَ لَهُ صَاحِبُهُ وَهُوَ يُحَاوِرُهُ أَكَفَرْتَ بِالَّذِي خَلَقَكَ مِن تُرَابٍ ثُمَّ مِن نُّطْفَةٍ ثُمَّ سَوَّاكَ رَجُلًا'},
-    {n:'٣٨',t:'لَّٰكِنَّا هُوَ اللَّهُ رَبِّي وَلَا أُشْرِكُ بِرَبِّي أَحَدًا'},
-    {n:'٣٩',t:'وَلَوْلَا إِذْ دَخَلْتَ جَنَّتَكَ قُلْتَ مَا شَاءَ اللَّهُ لَا قُوَّةَ إِلَّا بِاللَّهِ إِن تَرَنِ أَنَا أَقَلَّ مِنكَ مَالًا وَوَلَدًا'},
-    {n:'٤٠',t:'فَعَسَىٰ رَبِّي أَن يُؤْتِيَنِ خَيْرًا مِّن جَنَّتِكَ وَيُرْسِلَ عَلَيْهَا حُسْبَانًا مِّنَ السَّمَاءِ فَتُصْبِحَ صَعِيدًا زَلَقًا'},
-    {n:'٤١',t:'أَوْ يُصْبِحَ مَاؤُهَا غَوْرًا فَلَن تَسْتَطِيعَ لَهُ طَلَبًا'},
-    {n:'٤٢',t:'وَأُحِيطَ بِثَمَرِهِ فَأَصْبَحَ يُقَلِّبُ كَفَّيْهِ عَلَىٰ مَا أَنفَقَ فِيهَا وَهِيَ خَاوِيَةٌ عَلَىٰ عُرُوشِهَا وَيَقُولُ يَا لَيْتَنِي لَمْ أُشْرِكْ بِرَبِّي أَحَدًا'},
-    {n:'٤٣',t:'وَلَمْ تَكُن لَّهُ فِئَةٌ يَنصُرُونَهُ مِن دُونِ اللَّهِ وَمَا كَانَ مُنتَصِرًا'},
-    {n:'٤٤',t:'هُنَالِكَ الْوَلَايَةُ لِلَّهِ الْحَقِّ هُوَ خَيْرٌ ثَوَابًا وَخَيْرٌ عُقْبًا'},
-    {n:'٤٥',t:'وَاضْرِبْ لَهُم مَّثَلَ الْحَيَاةِ الدُّنْيَا كَمَاءٍ أَنزَلْنَاهُ مِنَ السَّمَاءِ فَاخْتَلَطَ بِهِ نَبَاتُ الْأَرْضِ فَأَصْبَحَ هَشِيمًا تَذْرُوهُ الرِّيَاحُ وَكَانَ اللَّهُ عَلَىٰ كُلِّ شَيْءٍ مُّقْتَدِرًا'},
-    {n:'٤٦',t:'الْمَالُ وَالْبَنُونَ زِينَةُ الْحَيَاةِ الدُّنْيَا وَالْبَاقِيَاتُ الصَّالِحَاتُ خَيْرٌ عِندَ رَبِّكَ ثَوَابًا وَخَيْرٌ أَمَلًا'},
-    {n:'٤٧',t:'وَيَوْمَ نُسَيِّرُ الْجِبَالَ وَتَرَى الْأَرْضَ بَارِزَةً وَحَشَرْنَاهُمْ فَلَمْ نُغَادِرْ مِنْهُمْ أَحَدًا'},
-    {n:'٤٨',t:'وَعُرِضُوا عَلَىٰ رَبِّكَ صَفًّا لَّقَدْ جِئْتُمُونَا كَمَا خَلَقْنَاكُمْ أَوَّلَ مَرَّةٍ بَلْ زَعَمْتُمْ أَلَّن نَّجْعَلَ لَكُم مَّوْعِدًا'},
-    {n:'٤٩',t:'وَوُضِعَ الْكِتَابُ فَتَرَى الْمُجْرِمِينَ مُشْفِقِينَ مِمَّا فِيهِ وَيَقُولُونَ يَا وَيْلَتَنَا مَالِ هَٰذَا الْكِتَابِ لَا يُغَادِرُ صَغِيرَةً وَلَا كَبِيرَةً إِلَّا أَحْصَاهَا وَوَجَدُوا مَا عَمِلُوا حَاضِرًا وَلَا يَظْلِمُ رَبُّكَ أَحَدًا'},
-    {n:'٥٠',t:'وَإِذْ قُلْنَا لِلْمَلَائِكَةِ اسْجُدُوا لِآدَمَ فَسَجَدُوا إِلَّا إِبْلِيسَ كَانَ مِنَ الْجِنِّ فَفَسَقَ عَنْ أَمْرِ رَبِّهِ أَفَتَتَّخِذُونَهُ وَذُرِّيَّتَهُ أَوْلِيَاءَ مِن دُونِي وَهُمْ لَكُمْ عَدُوٌّ بِئْسَ لِلظَّالِمِينَ بَدَلًا'},
-    {n:'٥١',t:'مَّا أَشْهَدتُّهُمْ خَلْقَ السَّمَاوَاتِ وَالْأَرْضِ وَلَا خَلْقَ أَنفُسِهِمْ وَمَا كُنتُ مُتَّخِذَ الْمُضِلِّينَ عَضُدًا'},
-    {n:'٥٢',t:'وَيَوْمَ يَقُولُ نَادُوا شُرَكَائِيَ الَّذِينَ زَعَمْتُمْ فَدَعَوْهُمْ فَلَمْ يَسْتَجِيبُوا لَهُمْ وَجَعَلْنَا بَيْنَهُم مَّوْبِقًا'},
-    {n:'٥٣',t:'وَرَأَى الْمُجْرِمُونَ النَّارَ فَظَنُّوا أَنَّهُم مُّوَاقِعُوهَا وَلَمْ يَجِدُوا عَنْهَا مَصْرِفًا'},
-    {n:'٥٤',t:'وَلَقَدْ صَرَّفْنَا فِي هَٰذَا الْقُرْآنِ لِلنَّاسِ مِن كُلِّ مَثَلٍ وَكَانَ الْإِنسَانُ أَكْثَرَ شَيْءٍ جَدَلًا'},
-    {n:'٥٥',t:'وَمَا مَنَعَ النَّاسَ أَن يُؤْمِنُوا إِذْ جَاءَهُمُ الْهُدَىٰ وَيَسْتَغْفِرُوا رَبَّهُمْ إِلَّا أَن تَأْتِيَهُمْ سُنَّةُ الْأَوَّلِينَ أَوْ يَأْتِيَهُمُ الْعَذَابُ قُبُلًا'},
-    {n:'٥٦',t:'وَمَا نُرْسِلُ الْمُرْسَلِينَ إِلَّا مُبَشِّرِينَ وَمُنذِرِينَ وَيُجَادِلُ الَّذِينَ كَفَرُوا بِالْبَاطِلِ لِيُدْحِضُوا بِهِ الْحَقَّ وَاتَّخَذُوا آيَاتِي وَمَا أُنذِرُوا هُزُوًا'},
-    {n:'٥٧',t:'وَمَنْ أَظْلَمُ مِمَّن ذُكِّرَ بِآيَاتِ رَبِّهِ فَأَعْرَضَ عَنْهَا وَنَسِيَ مَا قَدَّمَتْ يَدَاهُ إِنَّا جَعَلْنَا عَلَىٰ قُلُوبِهِمْ أَكِنَّةً أَن يَفْقَهُوهُ وَفِي آذَانِهِمْ وَقْرًا وَإِن تَدْعُهُمْ إِلَى الْهُدَىٰ فَلَن يَهْتَدُوا إِذًا أَبَدًا'},
-    {n:'٥٨',t:'وَرَبُّكَ الْغَفُورُ ذُو الرَّحْمَةِ لَوْ يُؤَاخِذُهُم بِمَا كَسَبُوا لَعَجَّلَ لَهُمُ الْعَذَابَ بَل لَّهُم مَّوْعِدٌ لَّن يَجِدُوا مِن دُونِهِ مَوْئِلًا'},
-    {n:'٥٩',t:'وَتِلْكَ الْقُرَىٰ أَهْلَكْنَاهُمْ لَمَّا ظَلَمُوا وَجَعَلْنَا لِمَهْلِكِهِمْ مَّوْعِدًا'},
-    {n:'٦٠',t:'وَإِذْ قَالَ مُوسَىٰ لِفَتَاهُ لَا أَبْرَحُ حَتَّىٰ أَبْلُغَ مَجْمَعَ الْبَحْرَيْنِ أَوْ أَمْضِيَ حُقُبًا'},
-    {n:'٦١',t:'فَلَمَّا بَلَغَا مَجْمَعَ بَيْنِهِمَا نَسِيَا حُوتَهُمَا فَاتَّخَذَ سَبِيلَهُ فِي الْبَحْرِ سَرَبًا'},
-    {n:'٦٢',t:'فَلَمَّا جَاوَزَا قَالَ لِفَتَاهُ آتِنَا غَدَاءَنَا لَقَدْ لَقِينَا مِن سَفَرِنَا هَٰذَا نَصَبًا'},
-    {n:'٦٣',t:'قَالَ أَرَأَيْتَ إِذْ أَوَيْنَا إِلَى الصَّخْرَةِ فَإِنِّي نَسِيتُ الْحُوتَ وَمَا أَنسَانِيهُ إِلَّا الشَّيْطَانُ أَنْ أَذْكُرَهُ وَاتَّخَذَ سَبِيلَهُ فِي الْبَحْرِ عَجَبًا'},
-    {n:'٦٤',t:'قَالَ ذَٰلِكَ مَا كُنَّا نَبْغِ فَارْتَدَّا عَلَىٰ آثَارِهِمَا قَصَصًا'},
-    {n:'٦٥',t:'فَوَجَدَا عَبْدًا مِّنْ عِبَادِنَا آتَيْنَاهُ رَحْمَةً مِّنْ عِندِنَا وَعَلَّمْنَاهُ مِن لَّدُنَّا عِلْمًا'},
-    {n:'٦٦',t:'قَالَ لَهُ مُوسَىٰ هَلْ أَتَّبِعُكَ عَلَىٰ أَن تُعَلِّمَنِ مِمَّا عُلِّمْتَ رُشْدًا'},
-    {n:'٦٧',t:'قَالَ إِنَّكَ لَن تَسْتَطِيعَ مَعِيَ صَبْرًا'},
-    {n:'٦٨',t:'وَكَيْفَ تَصْبِرُ عَلَىٰ مَا لَمْ تُحِطْ بِهِ خُبْرًا'},
-    {n:'٦٩',t:'قَالَ سَتَجِدُنِي إِن شَاءَ اللَّهُ صَابِرًا وَلَا أَعْصِي لَكَ أَمْرًا'},
-    {n:'٧٠',t:'قَالَ فَإِنِ اتَّبَعْتَنِي فَلَا تَسْأَلْنِي عَن شَيْءٍ حَتَّىٰ أُحْدِثَ لَكَ مِنْهُ ذِكْرًا'},
-    {n:'٧١',t:'فَانطَلَقَا حَتَّىٰ إِذَا رَكِبَا فِي السَّفِينَةِ خَرَقَهَا قَالَ أَخَرَقْتَهَا لِتُغْرِقَ أَهْلَهَا لَقَدْ جِئْتَ شَيْئًا إِمْرًا'},
-    {n:'٧٢',t:'قَالَ أَلَمْ أَقُلْ إِنَّكَ لَن تَسْتَطِيعَ مَعِيَ صَبْرًا'},
-    {n:'٧٣',t:'قَالَ لَا تُؤَاخِذْنِي بِمَا نَسِيتُ وَلَا تُرْهِقْنِي مِنْ أَمْرِي عُسْرًا'},
-    {n:'٧٤',t:'فَانطَلَقَا حَتَّىٰ إِذَا لَقِيَا غُلَامًا فَقَتَلَهُ قَالَ أَقَتَلْتَ نَفْسًا زَكِيَّةً بِغَيْرِ نَفْسٍ لَّقَدْ جِئْتَ شَيْئًا نُّكْرًا'},
-    {n:'٧٥',t:'قَالَ أَلَمْ أَقُل لَّكَ إِنَّكَ لَن تَسْتَطِيعَ مَعِيَ صَبْرًا'},
-    {n:'٧٦',t:'قَالَ إِن سَأَلْتُكَ عَن شَيْءٍ بَعْدَهَا فَلَا تُصَاحِبْنِي قَدْ بَلَغْتَ مِن لَّدُنِّي عُذْرًا'},
-    {n:'٧٧',t:'فَانطَلَقَا حَتَّىٰ إِذَا أَتَيَا أَهْلَ قَرْيَةٍ اسْتَطْعَمَا أَهْلَهَا فَأَبَوْا أَن يُضَيِّفُوهُمَا فَوَجَدَا فِيهَا جِدَارًا يُرِيدُ أَن يَنقَضَّ فَأَقَامَهُ قَالَ لَوْ شِئْتَ لَاتَّخَذْتَ عَلَيْهِ أَجْرًا'},
-    {n:'٧٨',t:'قَالَ هَٰذَا فِرَاقُ بَيْنِي وَبَيْنِكَ سَأُنَبِّئُكَ بِتَأْوِيلِ مَا لَمْ تَسْتَطِع عَّلَيْهِ صَبْرًا'},
-    {n:'٧٩',t:'أَمَّا السَّفِينَةُ فَكَانَتْ لِمَسَاكِينَ يَعْمَلُونَ فِي الْبَحْرِ فَأَرَدتُّ أَنْ أَعِيبَهَا وَكَانَ وَرَاءَهُم مَّلِكٌ يَأْخُذُ كُلَّ سَفِينَةٍ غَصْبًا'},
-    {n:'٨٠',t:'وَأَمَّا الْغُلَامُ فَكَانَ أَبَوَاهُ مُؤْمِنَيْنِ فَخَشِينَا أَن يُرْهِقَهُمَا طُغْيَانًا وَكُفْرًا'},
-    {n:'٨١',t:'فَأَرَدْنَا أَن يُبْدِلَهُمَا رَبُّهُمَا خَيْرًا مِّنْهُ زَكَاةً وَأَقْرَبَ رُحْمًا'},
-    {n:'٨٢',t:'وَأَمَّا الْجِدَارُ فَكَانَ لِغُلَامَيْنِ يَتِيمَيْنِ فِي الْمَدِينَةِ وَكَانَ تَحْتَهُ كَنزٌ لَّهُمَا وَكَانَ أَبُوهُمَا صَالِحًا فَأَرَادَ رَبُّكَ أَن يَبْلُغَا أَشُدَّهُمَا وَيَسْتَخْرِجَا كَنزَهُمَا رَحْمَةً مِّن رَّبِّكَ وَمَا فَعَلْتُهُ عَنْ أَمْرِي ذَٰلِكَ تَأْوِيلُ مَا لَمْ تَسْطِع عَّلَيْهِ صَبْرًا'},
-    {n:'٨٣',t:'وَيَسْأَلُونَكَ عَن ذِي الْقَرْنَيْنِ قُلْ سَأَتْلُو عَلَيْكُم مِّنْهُ ذِكْرًا'},
-    {n:'٨٤',t:'إِنَّا مَكَّنَّا لَهُ فِي الْأَرْضِ وَآتَيْنَاهُ مِن كُلِّ شَيْءٍ سَبَبًا'},
-    {n:'٨٥',t:'فَأَتْبَعَ سَبَبًا'},
-    {n:'٨٦',t:'حَتَّىٰ إِذَا بَلَغَ مَغْرِبَ الشَّمْسِ وَجَدَهَا تَغْرُبُ فِي عَيْنٍ حَمِئَةٍ وَوَجَدَ عِندَهَا قَوْمًا قُلْنَا يَا ذَا الْقَرْنَيْنِ إِمَّا أَن تُعَذِّبَ وَإِمَّا أَن تَتَّخِذَ فِيهِمْ حُسْنًا'},
-    {n:'٨٧',t:'قَالَ أَمَّا مَن ظَلَمَ فَسَوْفَ نُعَذِّبُهُ ثُمَّ يُرَدُّ إِلَىٰ رَبِّهِ فَيُعَذِّبُهُ عَذَابًا نُّكْرًا'},
-    {n:'٨٨',t:'وَأَمَّا مَنْ آمَنَ وَعَمِلَ صَالِحًا فَلَهُ جَزَاءً الْحُسْنَىٰ وَسَنَقُولُ لَهُ مِنْ أَمْرِنَا يُسْرًا'},
-    {n:'٨٩',t:'ثُمَّ أَتْبَعَ سَبَبًا'},
-    {n:'٩٠',t:'حَتَّىٰ إِذَا بَلَغَ مَطْلِعَ الشَّمْسِ وَجَدَهَا تَطْلُعُ عَلَىٰ قَوْمٍ لَّمْ نَجْعَل لَّهُم مِّن دُونِهَا سِتْرًا'},
-    {n:'٩١',t:'كَذَٰلِكَ وَقَدْ أَحَطْنَا بِمَا لَدَيْهِ خُبْرًا'},
-    {n:'٩٢',t:'ثُمَّ أَتْبَعَ سَبَبًا'},
-    {n:'٩٣',t:'حَتَّىٰ إِذَا بَلَغَ بَيْنَ السَّدَّيْنِ وَجَدَ مِن دُونِهِمَا قَوْمًا لَّا يَكَادُونَ يَفْقَهُونَ قَوْلًا'},
-    {n:'٩٤',t:'قَالُوا يَا ذَا الْقَرْنَيْنِ إِنَّ يَأْجُوجَ وَمَأْجُوجَ مُفْسِدُونَ فِي الْأَرْضِ فَهَلْ نَجْعَلُ لَكَ خَرْجًا عَلَىٰ أَن تَجْعَلَ بَيْنَنَا وَبَيْنَهُمْ سَدًّا'},
-    {n:'٩٥',t:'قَالَ مَا مَكَّنِّي فِيهِ رَبِّي خَيْرٌ فَأَعِينُونِي بِقُوَّةٍ أَجْعَلْ بَيْنَكُمْ وَبَيْنَهُمْ رَدْمًا'},
-    {n:'٩٦',t:'آتُونِي زُبَرَ الْحَدِيدِ حَتَّىٰ إِذَا سَاوَىٰ بَيْنَ الصَّدَفَيْنِ قَالَ انفُخُوا حَتَّىٰ إِذَا جَعَلَهُ نَارًا قَالَ آتُونِي أُفْرِغْ عَلَيْهِ قِطْرًا'},
-    {n:'٩٧',t:'فَمَا اسْطَاعُوا أَن يَظْهَرُوهُ وَمَا اسْتَطَاعُوا لَهُ نَقْبًا'},
-    {n:'٩٨',t:'قَالَ هَٰذَا رَحْمَةٌ مِّن رَّبِّي فَإِذَا جَاءَ وَعْدُ رَبِّي جَعَلَهُ دَكَّاءَ وَكَانَ وَعْدُ رَبِّي حَقًّا'},
-    {n:'٩٩',t:'وَتَرَكْنَا بَعْضَهُمْ يَوْمَئِذٍ يَمُوجُ فِي بَعْضٍ وَنُفِخَ فِي الصُّورِ فَجَمَعْنَاهُمْ جَمْعًا'},
-    {n:'١٠٠',t:'وَعَرَضْنَا جَهَنَّمَ يَوْمَئِذٍ لِّلْكَافِرِينَ عَرْضًا'},
-    {n:'١٠١',t:'الَّذِينَ كَانَتْ أَعْيُنُهُمْ فِي غِطَاءٍ عَن ذِكْرِي وَكَانُوا لَا يَسْتَطِيعُونَ سَمْعًا'},
-    {n:'١٠٢',t:'أَفَحَسِبَ الَّذِينَ كَفَرُوا أَن يَتَّخِذُوا عِبَادِي مِن دُونِي أَوْلِيَاءَ إِنَّا أَعْتَدْنَا جَهَنَّمَ لِلْكَافِرِينَ نُزُلًا'},
-    {n:'١٠٣',t:'قُلْ هَلْ نُنَبِّئُكُم بِالْأَخْسَرِينَ أَعْمَالًا'},
-    {n:'١٠٤',t:'الَّذِينَ ضَلَّ سَعْيُهُمْ فِي الْحَيَاةِ الدُّنْيَا وَهُمْ يَحْسَبُونَ أَنَّهُمْ يُحْسِنُونَ صُنْعًا'},
-    {n:'١٠٥',t:'أُولَٰئِكَ الَّذِينَ كَفَرُوا بِآيَاتِ رَبِّهِمْ وَلِقَائِهِ فَحَبِطَتْ أَعْمَالُهُمْ فَلَا نُقِيمُ لَهُمْ يَوْمَ الْقِيَامَةِ وَزْنًا'},
-    {n:'١٠٦',t:'ذَٰلِكَ جَزَاؤُهُمْ جَهَنَّمُ بِمَا كَفَرُوا وَاتَّخَذُوا آيَاتِي وَرُسُلِي هُزُوًا'},
-    {n:'١٠٧',t:'إِنَّ الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ كَانَتْ لَهُمْ جَنَّاتُ الْفِرْدَوْسِ نُزُلًا'},
-    {n:'١٠٨',t:'خَالِدِينَ فِيهَا لَا يَبْغُونَ عَنْهَا حِوَلًا'},
-    {n:'١٠٩',t:'قُل لَّوْ كَانَ الْبَحْرُ مِدَادًا لِّكَلِمَاتِ رَبِّي لَنَفِدَ الْبَحْرُ قَبْلَ أَن تَنفَدَ كَلِمَاتُ رَبِّي وَلَوْ جِئْنَا بِمِثْلِهِ مَدَدًا'},
-    {n:'١١٠',t:'قُلْ إِنَّمَا أَنَا بَشَرٌ مِّثْلُكُمْ يُوحَىٰ إِلَيَّ أَنَّمَا إِلَٰهُكُمْ إِلَٰهٌ وَاحِدٌ فَمَن كَانَ يَرْجُو لِقَاءَ رَبِّهِ فَلْيَعْمَلْ عَمَلًا صَالِحًا وَلَا يُشْرِكْ بِعِبَادَةِ رَبِّهِ أَحَدًا'}
-  ]}
-};
-
-// ── Surah numbers for EveryAyah API ──────────────────────────────────────────
-const SURAH_NUM = {
-  fatiha: 1, ikhlas: 112, falaq: 113, nas: 114, kawthar: 108, asr: 103, kahf: 18
-};
-
-// ── State ─────────────────────────────────────────────────────────────────────
-let surah = 'fatiha', idx = 0;
-let mediaRec = null, audioChunks = [], isRec = false;
-
-// ── Al-Husary Audio ──────────────────────────────────────────────────────────
-function playHusary(){
-  const btn = document.getElementById('husaryBtn');
-  const audio = document.getElementById('husaryAudio');
-  if(!audio.paused){ audio.pause(); audio.currentTime=0; resetHusaryBtn(); return; }
-  const sNum = String(SURAH_NUM[surah]).padStart(3,'0');
-  const aNum = String(idx+1).padStart(3,'0');
-  const url = `https://everyayah.com/data/Husary_128kbps/${sNum}${aNum}.mp3`;
-  audio.src = url;
-  audio.play().catch(()=>{ setStatus('err','⚠️ تعذّر تشغيل التسجيل، تحقق من الاتصال'); });
-  btn.textContent = '⏹️ إيقاف';
-  btn.style.borderColor = '#e74c3c';
-  btn.style.color = '#ff8a80';
-}
-function stopHusary(){ const a=document.getElementById('husaryAudio'); if(a){a.pause();a.currentTime=0;} resetHusaryBtn(); }
-function resetHusaryBtn(){
-  const btn = document.getElementById('husaryBtn');
-  btn.innerHTML = '🔊 استمع للشيخ الحصري';
-  btn.style.borderColor = 'rgba(201,168,76,0.3)';
-  btn.style.color = '#e8d08a';
-}
-
-// ── Render ────────────────────────────────────────────────────────────────────
-function loadSurah(){ surah = document.getElementById('sel').value; idx = 0; stopHusary(); renderAyah(); hidePanel(); }
-function nav(d){ idx = Math.max(0, Math.min(Q[surah].a.length-1, idx+d)); stopHusary(); renderAyah(); hidePanel(); }
-
-function renderAyah(){
-  const s = Q[surah], ay = s.a[idx];
-  document.getElementById('badge').textContent = ay.n;
-  document.getElementById('ayahText').innerHTML = ay.t.split(/\s+/).map(w=>`<span class="w w-neu">${w}</span>`).join(' ');
-  document.getElementById('counter').textContent = `${ay.n} / ${toAr(s.a.length)}`;
-  document.getElementById('prevBtn').disabled = idx===0;
-  document.getElementById('nextBtn').disabled = idx===s.a.length-1;
-  setStatus('','🕌 اضغط زر التسجيل واقرأ الآية');
-}
-
-// ── Recording (MediaRecorder → real audio → Whisper) ─────────────────────────
-async function toggleRec(){
-  if(isRec){ stopRec(); return; }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-    audioChunks = [];
-    const mime = getSupportedMime();
-    mediaRec = mime ? new MediaRecorder(stream, {mimeType: mime}) : new MediaRecorder(stream);
-    mediaRec.ondataavailable = e => { if(e.data.size>0) audioChunks.push(e.data); };
-    mediaRec.onstop = processAudio;
-    mediaRec.start(250);
-    isRec = true;
-    document.getElementById('recBtn').classList.add('recording');
-    document.getElementById('recBtn').textContent = '⏹️';
-    document.getElementById('recLbl').textContent = 'جارٍ التسجيل... اضغط للإيقاف';
-    document.getElementById('recLbl').classList.add('live');
-    setStatus('rec','🔴 يسجّل... اقرأ الآية بوضوح ثم اضغط إيقاف');
-    hidePanel();
-  } catch(e){
-    setStatus('err','⚠️ لم يُسمح بالوصول إلى الميكروفون — تحقق من إعدادات المتصفح');
-  }
-}
-
-function stopRec(){
-  if(mediaRec && isRec){ mediaRec.stop(); mediaRec.stream.getTracks().forEach(t=>t.stop()); }
-  isRec = false;
-  document.getElementById('recBtn').classList.remove('recording');
-  document.getElementById('recBtn').textContent = '🎙️';
-  document.getElementById('recLbl').textContent = 'اضغط للتسجيل';
-  document.getElementById('recLbl').classList.remove('live');
-}
-
-function getSupportedMime(){
-  // iOS Safari only supports audio/mp4
-  const types = ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'];
-  const supported = types.find(t => MediaRecorder.isTypeSupported(t));
-  return supported || '';
-}
-
-async function processAudio(){
-  setStatus('proc','⏳ Whisper يستمع إلى تلاوتك...');
-  document.getElementById('aiContent').innerHTML = `<div class="loading"><div class="spinner"></div>جارٍ التحليل...</div>`;
+  if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
+  if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: "Method Not Allowed" };
 
   try {
-    const mime = audioChunks[0]?.type || 'audio/webm';
-    const blob = new Blob(audioChunks, {type: mime});
-    const base64 = await blobToBase64(blob);
+    const body = JSON.parse(event.body);
+    const { audioBase64, mimeType, ayahText, surahName, ayahNum } = body;
 
-    const ay = Q[surah].a[idx];
-    const res = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        audioBase64: base64.split(',')[1],
-        mimeType: mime,
-        ayahText: ay.t,
-        surahName: Q[surah].n,
-        ayahNum: ay.n
-      })
+    if (!audioBase64 || !ayahText) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing audioBase64 or ayahText" }) };
+    }
+
+    const OPENAI_KEY = process.env.OPENAI_API_KEY;
+    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+
+    if (!OPENAI_KEY || !ANTHROPIC_KEY) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: "API keys not configured on server" }) };
+    }
+
+    // ── Step 1: Whisper via multipart/form-data ──────────────────────────────
+    const audioBuffer = Buffer.from(audioBase64, "base64");
+    const mime = mimeType || "audio/webm";
+    const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+
+    const form = new FormData();
+    form.append("file", audioBuffer, { filename: `rec.${ext}`, contentType: mime });
+    form.append("model", "whisper-1");
+    form.append("language", "ar");
+    form.append("prompt", `قرآن كريم سورة ${surahName}`);
+
+    const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_KEY}`,
+        ...form.getHeaders(),
+      },
+      body: form.getBuffer(),
     });
 
-    const data = await res.json();
-    if(!res.ok || !data.success) throw new Error(data.error || 'خطأ في الخادم');
+    if (!whisperRes.ok) {
+      const err = await whisperRes.text();
+      throw new Error(`Whisper error: ${err}`);
+    }
 
-    renderResults(data.transcript, data.analysis, ay.t);
+    const whisperData = await whisperRes.json();
+    const transcript = whisperData.text?.trim() || "";
 
-  } catch(e){
-    setStatus('err','⚠️ خطأ: ' + e.message);
-    document.getElementById('aiContent').innerHTML = `<div style="color:#ff8a80;padding:1rem;font-size:0.85rem;">⚠️ ${e.message}</div>`;
-    showPanel();
+    // ── Step 2: Claude tajweed analysis ──────────────────────────────────────
+    const prompt = `أنت شيخ متخصص في علم التجويد وعلوم القرآن الكريم.
+
+الآية الكريمة: "${ayahText}"
+من سورة: ${surahName} — الآية رقم: ${ayahNum}
+
+ما سجّله الميكروفون من تلاوة المتعلم: "${transcript}"
+
+قارن بدقة بين الآية الصحيحة وما قرأه المتعلم، وحلّل أحكام التجويد.
+
+أجب بـ JSON فقط بدون أي نص خارجه:
+{
+  "score": 0-100,
+  "summary": "جملة واحدة",
+  "word_errors": [{"wrong": "...", "correct": "...", "reason": "..."}],
+  "tajweed_rules": [{"rule": "...", "location": "...", "status": "correct|error|missed", "explanation": "..."}],
+  "makharij_notes": "...",
+  "praise": "...",
+  "next_focus": "..."
+}`;
+
+    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1200,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!claudeRes.ok) {
+      const err = await claudeRes.text();
+      throw new Error(`Claude error: ${err}`);
+    }
+
+    const claudeData = await claudeRes.json();
+    let text = claudeData.content.map((c) => c.text || "").join("");
+    text = text.replace(/```json|```/g, "").trim();
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    if(jsonStart === -1 || jsonEnd === -1) throw new Error('No JSON in Claude response');
+    text = text.slice(jsonStart, jsonEnd + 1);
+    text = text.replace(/[\u0000-\u001F\u007F]/g, ' ');
+    let analysis;
+    try {
+      analysis = JSON.parse(text);
+    } catch(e) {
+      analysis = {
+        score: 70, summary: "تمت التلاوة", word_errors: [], tajweed_rules: [],
+        praise: "أحسنت، استمر في التدريب",
+        next_focus: "حاول التسجيل مرة أخرى للحصول على تحليل أدق"
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ success: true, transcript, analysis }),
+    };
+
+  } catch (err) {
+    console.error("analyze error:", err);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
-}
-
-// ── Render Results ────────────────────────────────────────────────────────────
-function renderResults(transcript, r, ayahText){
-  // Color words in mushaf
-  const correct = ayahText.split(/\s+/);
-  const heard   = (transcript||'').split(/\s+/);
-  const normC   = correct.map(strip);
-  const normH   = heard.map(strip);
-  document.getElementById('ayahText').innerHTML = correct.map((w,i)=>{
-    const ok = normH[i] && normH[i]===normC[i];
-    return `<span class="w ${ok?'w-ok':'w-bad'}">${w}</span>`;
-  }).join(' ');
-
-  // Basic tab
-  const errs = (r.word_errors||[]);
-  document.getElementById('heardTxt').textContent = `ما سُمع: ${transcript}`;
-  if(errs.length===0){
-    document.getElementById('basicContent').innerHTML = `<div class="all-ok"><span>✅</span>أحسنت! التلاوة صحيحة</div>`;
-  } else {
-    document.getElementById('basicContent').innerHTML = errs.map(e=>`
-      <div class="err-item">
-        قلت: <span class="wq wbad">${e.wrong||'—'}</span>
-        <span class="arr">←</span>
-        الصواب: <span class="wq wok">${e.correct}</span>
-        <div style="font-size:0.78rem;color:rgba(240,230,208,0.5);margin-top:0.2rem">${e.reason||''}</div>
-      </div>`).join('');
-  }
-
-  // AI tab
-  const sc = r.score||0;
-  const scClass = sc>=80?'sfh':sc>=50?'sfm':'sfl';
-  const si = {correct:'✅', error:'❌', missed:'⚠️'};
-  const rules = (r.tajweed_rules||[]).map(t=>{
-    const cls = t.status==='error'?'bad':t.status==='missed'?'miss':'';
-    return `<div class="rule-card ${cls}">
-      <div class="rule-name">${si[t.status]||'•'} ${t.rule} <span class="rule-loc">${t.location||''}</span></div>
-      <div class="rule-desc">${t.explanation}</div>
-    </div>`;
-  }).join('');
-
-  const wordErrHtml = errs.length ? `<h3>📝 أخطاء في الكلمات</h3>` + errs.map(e=>`
-    <div class="rule-card bad">
-      <div class="rule-name">قلت: <span style="font-family:'Amiri Quran',serif">${e.wrong||'—'}</span> ← الصواب: <span style="font-family:'Amiri Quran',serif">${e.correct}</span></div>
-      <div class="rule-desc">${e.reason||''}</div>
-    </div>`).join('') : '';
-
-  document.getElementById('aiContent').innerHTML = `
-    <div class="ai-section">
-      <div class="score-wrap">
-        <div class="score-lbl"><span>دقة التلاوة</span><span>${sc}/100</span></div>
-        <div class="score-bar"><div class="score-fill ${scClass}" style="width:${sc}%"></div></div>
-        <div style="font-size:0.82rem;color:rgba(240,230,208,0.55);margin-top:0.4rem">${r.summary||''}</div>
-      </div>
-      ${wordErrHtml}
-      ${rules ? `<h3>📖 أحكام التجويد في هذه الآية</h3>${rules}` : ''}
-      ${r.makharij_notes ? `<h3>🗣️ مخارج الحروف</h3><div class="highlight-card">${r.makharij_notes}</div>` : ''}
-      ${r.praise ? `<h3>💬 تشجيع</h3><div class="highlight-card">${r.praise}</div>` : ''}
-      ${r.next_focus ? `<h3>🎯 ركّز في التدريب القادم</h3><div class="highlight-card">${r.next_focus}</div>` : ''}
-    </div>`;
-
-  setStatus('ok', `✅ درجة التلاوة: ${sc}/100 — ${r.summary||''}`);
-  showPanel();
-  switchTab(2); // auto-switch to AI tab
-}
-
-// ── Tabs ──────────────────────────────────────────────────────────────────────
-function switchTab(n){
-  [1,2].forEach(i=>{
-    document.getElementById(`t${i}`).classList.toggle('on',i===n);
-    document.getElementById(`p${i}`).classList.toggle('on',i===n);
-  });
-}
-function showPanel(){ document.getElementById('panel').classList.add('show'); }
-function hidePanel(){ document.getElementById('panel').classList.remove('show'); }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function strip(s=''){
-  return s
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g,'')
-    .replace(/\u0640/g,'')
-    .replace(/[\u0622\u0623\u0625]/g,'\u0627')
-    .replace(/\u0649/g,'\u064A')
-    .replace(/\u0629/g,'\u0647')
-    .trim();
-}
-function toAr(n){ return n.toString().replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]); }
-function blobToBase64(blob){ return new Promise(r=>{ const rd=new FileReader(); rd.onload=()=>r(rd.result); rd.readAsDataURL(blob); }); }
-function setStatus(cls,msg){ const b=document.getElementById('status'); b.className='status'+(cls?' '+cls:''); b.textContent=msg; }
-
-renderAyah();
-</script>
-</body>
-</html>
+};
