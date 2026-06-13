@@ -205,6 +205,17 @@
     </div>
   </div>
 
+  <!-- Listen to Al-Husary -->
+  <div style="text-align:center;margin-bottom:1.2rem;">
+    <button onclick="playHusary()" id="husaryBtn"
+      style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:#e8d08a;
+             padding:0.5rem 1.4rem;border-radius:20px;cursor:pointer;font-family:Cairo,sans-serif;
+             font-size:0.85rem;transition:all 0.2s;display:inline-flex;align-items:center;gap:0.5rem;">
+      🔊 استمع للشيخ الحصري
+    </button>
+    <audio id="husaryAudio" onended="resetHusaryBtn()"></audio>
+  </div>
+
   <div class="rec-wrap">
     <button class="rec-btn" id="recBtn" onclick="toggleRec()">🎙️</button>
     <span class="rec-label" id="recLbl">اضغط للتسجيل</span>
@@ -387,13 +398,40 @@ const Q = {
   ]}
 };
 
+// ── Surah numbers for EveryAyah API ──────────────────────────────────────────
+const SURAH_NUM = {
+  fatiha: 1, ikhlas: 112, falaq: 113, nas: 114, kawthar: 108, asr: 103, kahf: 18
+};
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let surah = 'fatiha', idx = 0;
 let mediaRec = null, audioChunks = [], isRec = false;
 
+// ── Al-Husary Audio ──────────────────────────────────────────────────────────
+function playHusary(){
+  const btn = document.getElementById('husaryBtn');
+  const audio = document.getElementById('husaryAudio');
+  if(!audio.paused){ audio.pause(); audio.currentTime=0; resetHusaryBtn(); return; }
+  const sNum = String(SURAH_NUM[surah]).padStart(3,'0');
+  const aNum = String(idx+1).padStart(3,'0');
+  const url = `https://everyayah.com/data/Husary_128kbps/${sNum}${aNum}.mp3`;
+  audio.src = url;
+  audio.play().catch(()=>{ setStatus('err','⚠️ تعذّر تشغيل التسجيل، تحقق من الاتصال'); });
+  btn.textContent = '⏹️ إيقاف';
+  btn.style.borderColor = '#e74c3c';
+  btn.style.color = '#ff8a80';
+}
+function stopHusary(){ const a=document.getElementById('husaryAudio'); if(a){a.pause();a.currentTime=0;} resetHusaryBtn(); }
+function resetHusaryBtn(){
+  const btn = document.getElementById('husaryBtn');
+  btn.innerHTML = '🔊 استمع للشيخ الحصري';
+  btn.style.borderColor = 'rgba(201,168,76,0.3)';
+  btn.style.color = '#e8d08a';
+}
+
 // ── Render ────────────────────────────────────────────────────────────────────
-function loadSurah(){ surah = document.getElementById('sel').value; idx = 0; renderAyah(); hidePanel(); }
-function nav(d){ idx = Math.max(0, Math.min(Q[surah].a.length-1, idx+d)); renderAyah(); hidePanel(); }
+function loadSurah(){ surah = document.getElementById('sel').value; idx = 0; stopHusary(); renderAyah(); hidePanel(); }
+function nav(d){ idx = Math.max(0, Math.min(Q[surah].a.length-1, idx+d)); stopHusary(); renderAyah(); hidePanel(); }
 
 function renderAyah(){
   const s = Q[surah], ay = s.a[idx];
@@ -411,7 +449,15 @@ async function toggleRec(){
   try {
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
     audioChunks = [];
-    mediaRec = new MediaRecorder(stream, {mimeType: getSupportedMime()});
+    let mediaRecOptions = {};
+    const mime = getSupportedMime();
+    if(mime) mediaRecOptions.mimeType = mime;
+    try {
+      mediaRec = new MediaRecorder(stream, mediaRecOptions);
+    } catch(e) {
+      // Fallback: no options (Safari may need this)
+      mediaRec = new MediaRecorder(stream);
+    }
     mediaRec.ondataavailable = e => { if(e.data.size>0) audioChunks.push(e.data); };
     mediaRec.onstop = processAudio;
     mediaRec.start(250);
@@ -437,8 +483,19 @@ function stopRec(){
 }
 
 function getSupportedMime(){
-  const types = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
-  return types.find(t => MediaRecorder.isTypeSupported(t)) || '';
+  // Test each type carefully for iOS Safari compatibility
+  const types = [
+    'audio/mp4;codecs=mp4a.40.2',
+    'audio/mp4',
+    'audio/aac',
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus'
+  ];
+  for(const t of types){
+    try { if(MediaRecorder.isTypeSupported(t)) return t; } catch(e){}
+  }
+  return ''; // Let browser choose
 }
 
 async function processAudio(){
